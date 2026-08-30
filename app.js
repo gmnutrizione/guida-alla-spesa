@@ -340,7 +340,7 @@ function renderProdotto(slug) {
       <span class="category-badge">${escapeHtml(p.categoria)}</span>
       <button class="compare-btn" id="compareBtn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Confronta con un altro alimento
+        Confronta con...
       </button>
     </div>
     <div class="detail-card">
@@ -408,22 +408,16 @@ function renderConfrontoScegli(slug1) {
   if (!p1) { view.innerHTML = `<div class="empty"><p>Prodotto non trovato.</p></div>`; return; }
   brandText.textContent = "Confronta";
   view.innerHTML = `
-    <div class="compare-pick-current">Stai confrontando <strong>${escapeHtml(p1.nome)}</strong>. Cerca il secondo alimento o scegli una categoria.</div>
+    <div class="compare-pick-current">Stai confrontando <strong>${escapeHtml(p1.nome)}</strong>. Cerca il secondo alimento, oppure scegli tra gli altri prodotti della stessa categoria.</div>
     <div class="search-box">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <input id="compareSearchInput" type="text" placeholder="Cerca un alimento da confrontare" autocomplete="off">
     </div>
-    <div class="category-select">
-      <select id="compareCategorySelect">
-        <option value="" selected disabled>Scegli una categoria</option>
-        ${CATEGORIES.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join("")}
-      </select>
-      <svg class="select-icon" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>
+    <button class="category-badge" id="compareCategoryChip" style="border:none;cursor:pointer;">${escapeHtml(p1.categoria)}</button>
     <div id="compareResults"></div>`;
 
   const input = document.getElementById("compareSearchInput");
-  const select = document.getElementById("compareCategorySelect");
+  const chip = document.getElementById("compareCategoryChip");
   const results = document.getElementById("compareResults");
   input.focus();
 
@@ -439,13 +433,12 @@ function renderConfrontoScegli(slug1) {
   input.addEventListener("input", () => {
     const q = input.value.trim().toLowerCase();
     if (q.length < 2) { results.innerHTML = ""; return; }
-    select.selectedIndex = 0;
     showResults(PRODUCTS.filter(p => p.slug !== p1.slug && p.nome.toLowerCase().includes(q)));
   });
 
-  select.addEventListener("change", () => {
+  chip.addEventListener("click", () => {
     input.value = "";
-    showResults(PRODUCTS.filter(p => p.slug !== p1.slug && p.categoria === select.value));
+    showResults(PRODUCTS.filter(p => p.slug !== p1.slug && p.categoria === p1.categoria));
   });
 }
 

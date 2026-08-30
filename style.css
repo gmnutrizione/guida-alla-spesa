@@ -403,7 +403,6 @@ body { min-height: 100vh; min-height: 100dvh; }
   height: 32px;
   border-radius: 50%;
   margin-top: auto;
-  padding-top: 8px;
 }
 .compare-score .score-inner {
   width: 26px;
@@ -436,7 +435,7 @@ body { min-height: 100vh; min-height: 100dvh; }
   text-underline-offset: 2px;
 }
 .compare-label {
-  font-size: calc(11.5px * var(--scale-body));
+  font-size: calc(13px * var(--scale-body));
   color: var(--ink-soft);
   text-align: center;
 }
