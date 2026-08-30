@@ -3,7 +3,7 @@
 // ==========================================================================
 
 // Link CSV pubblicato del Google Sheet collegato al Form "Guida la Spesa"
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTV8Hxufa8Zwa5aDoD_1R5qjZR8mzlc2YMu6rEDeamng1O-pqBAW4L-iBhI-sa_iDHbx3E3aMtz7Nbw/pub?gid=1267891865&single=true&output=csv";
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6CZuwcz5yV9JmezGn7FSARpyVuBFdcLy9wz9kNuV3atrPUv2gVOF_QsvjbfYcRVNJDhxUP6YEHwcT/pub?gid=38068885&single=true&output=csv";
 
 // Le 27 categorie, nell'ordine in cui appaiono in home
 const CATEGORIES = [
