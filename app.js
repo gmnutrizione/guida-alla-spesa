@@ -24,9 +24,35 @@ const EMPTY_CATEGORY_TEXT = "Non ci sono ancora prodotti in questa categoria.";
 let PRODUCTS = [];
 let LOAD_ERROR = null;
 
+const LIST_KEY = "guidaSpesaLista";
+function loadShoppingList() {
+  try { return JSON.parse(localStorage.getItem(LIST_KEY)) || {}; }
+  catch (e) { return {}; }
+}
+function saveShoppingList() { localStorage.setItem(LIST_KEY, JSON.stringify(SHOPPING_LIST)); }
+let SHOPPING_LIST = loadShoppingList();
+
+function isInList(slug) { return Object.prototype.hasOwnProperty.call(SHOPPING_LIST, slug); }
+function addToList(slug) { SHOPPING_LIST[slug] = { checked: false }; saveShoppingList(); }
+function removeFromList(slug) { delete SHOPPING_LIST[slug]; saveShoppingList(); }
+function toggleChecked(slug) {
+  if (SHOPPING_LIST[slug]) { SHOPPING_LIST[slug].checked = !SHOPPING_LIST[slug].checked; saveShoppingList(); }
+}
+function listCount() { return Object.keys(SHOPPING_LIST).length; }
+
+function updateListBadge() {
+  const badge = document.getElementById("listBadge");
+  const countEl = document.getElementById("listCount");
+  const count = listCount();
+  countEl.textContent = count;
+  badge.hidden = count === 0;
+}
+
 const view = document.getElementById("view");
 const backBtn = document.getElementById("backBtn");
 const brandText = document.getElementById("brandText");
+
+document.getElementById("listBadge").addEventListener("click", () => goTo("#/lista"));
 
 // ==========================================================================
 // UTILITA'
@@ -164,6 +190,7 @@ function currentRoute() {
   if (parts[0] === "cerca") return { name: "cerca", q: decodeURIComponent(parts[1] || "") };
   if (parts[0] === "confronto" && parts[1] && parts[2]) return { name: "confronto", slug1: decodeURIComponent(parts[1]), slug2: decodeURIComponent(parts[2]) };
   if (parts[0] === "confronto" && parts[1]) return { name: "confronto-scegli", slug1: decodeURIComponent(parts[1]) };
+  if (parts[0] === "lista") return { name: "lista" };
   return { name: "home" };
 }
 
@@ -176,6 +203,7 @@ window.addEventListener("hashchange", render);
 // ==========================================================================
 
 function render() {
+  updateListBadge();
   if (LOAD_ERROR) { renderError(); return; }
   const route = currentRoute();
   backBtn.hidden = route.name === "home";
@@ -184,6 +212,7 @@ function render() {
   else if (route.name === "cerca") renderCerca(route.q);
   else if (route.name === "confronto-scegli") renderConfrontoScegli(route.slug1);
   else if (route.name === "confronto") renderConfronto(route.slug1, route.slug2);
+  else if (route.name === "lista") renderLista();
   else renderHome();
   window.scrollTo(0, 0);
 }
@@ -221,9 +250,12 @@ function renderHome() {
         }).join("")}
       </select>
       <svg class="select-icon" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </div>`;
+    </div>
+    <button class="list-cta" id="goListBtn">La tua lista della spesa${listCount() ? ` (${listCount()})` : ""}</button>`;
   view.innerHTML = html;
   brandText.textContent = "Guida alla spesa";
+
+  document.getElementById("goListBtn").addEventListener("click", () => goTo("#/lista"));
 
   const input = document.getElementById("searchInput");
   input.addEventListener("input", () => {
@@ -337,11 +369,8 @@ function renderProdotto(slug) {
 
   view.innerHTML = `
     <div class="detail-top-row">
-      <span class="category-badge">${escapeHtml(p.categoria)}</span>
-      <button class="compare-btn" id="compareBtn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Confronta con...
-      </button>
+      <button class="category-badge" id="compareBtn">Confronta con...</button>
+      <button class="compare-btn" id="addListBtn"></button>
     </div>
     <div class="detail-card">
       <div class="detail-head">
@@ -375,6 +404,17 @@ function renderProdotto(slug) {
     </div>`;
 
   document.getElementById("compareBtn").addEventListener("click", () => goTo(`#/confronto/${encodeURIComponent(p.slug)}`));
+
+  const addListBtn = document.getElementById("addListBtn");
+  function refreshAddListBtn() {
+    addListBtn.textContent = isInList(p.slug) ? "Nella lista ✓" : "Aggiungi alla lista";
+  }
+  refreshAddListBtn();
+  addListBtn.addEventListener("click", () => {
+    if (isInList(p.slug)) removeFromList(p.slug); else addToList(p.slug);
+    refreshAddListBtn();
+    updateListBadge();
+  });
 
   const btn100 = document.getElementById("btn100");
   const btnPorz = document.getElementById("btnPorz");
@@ -489,6 +529,70 @@ function renderConfronto(slug1, slug2) {
     </div>`;
 }
 
+function shoppingItemHtml(p, isChecked) {
+  return `
+    <div class="shopping-item ${isChecked ? "checked" : ""}">
+      <button class="shopping-check" data-slug="${escapeHtml(p.slug)}" aria-label="Segna come preso">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="shopping-info">
+        <div class="shopping-name">${escapeHtml(p.nome)}</div>
+        ${p.marca ? `<div class="shopping-brand">${escapeHtml(p.marca)}</div>` : ""}
+      </div>
+      <button class="shopping-remove" data-slug="${escapeHtml(p.slug)}" aria-label="Rimuovi dalla lista">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      </button>
+    </div>`;
+}
+
+function groupBySameCategory(items) {
+  const map = {};
+  items.forEach(x => { (map[x.product.categoria] = map[x.product.categoria] || []).push(x); });
+  return CATEGORIES.filter(cat => map[cat]).map(cat => ({ categoria: cat, items: map[cat] }));
+}
+
+function renderLista() {
+  brandText.textContent = "La tua lista";
+  const slugs = Object.keys(SHOPPING_LIST);
+  const items = slugs
+    .map(slug => ({ slug, checked: SHOPPING_LIST[slug].checked, product: PRODUCTS.find(p => p.slug === slug) }))
+    .filter(x => x.product);
+
+  if (!items.length) {
+    view.innerHTML = `<div class="empty"><p>La tua lista della spesa è vuota. Aggiungi un alimento dalla sua scheda.</p></div>`;
+    return;
+  }
+
+  const daPrendere = items.filter(x => !x.checked);
+  const presi = items.filter(x => x.checked);
+
+  let html = groupBySameCategory(daPrendere).map(g => `
+    <div class="shopping-group-title">${escapeHtml(g.categoria)}</div>
+    ${g.items.map(x => shoppingItemHtml(x.product, false)).join("")}
+  `).join("");
+
+  if (presi.length) {
+    html += `<div class="shopping-group-title">Già nel carrello</div>`;
+    html += presi.map(x => shoppingItemHtml(x.product, true)).join("");
+  }
+
+  html += `<button class="list-cta" id="clearListBtn">Svuota lista</button>`;
+  view.innerHTML = html;
+
+  view.querySelectorAll(".shopping-check").forEach(btn => {
+    btn.addEventListener("click", () => { toggleChecked(btn.dataset.slug); render(); });
+  });
+  view.querySelectorAll(".shopping-remove").forEach(btn => {
+    btn.addEventListener("click", () => { removeFromList(btn.dataset.slug); updateListBadge(); render(); });
+  });
+  document.getElementById("clearListBtn").addEventListener("click", () => {
+    SHOPPING_LIST = {};
+    saveShoppingList();
+    updateListBadge();
+    render();
+  });
+}
+
 
 
 backBtn.addEventListener("click", () => {
@@ -500,6 +604,8 @@ backBtn.addEventListener("click", () => {
     goTo(`#/prodotto/${encodeURIComponent(route.slug1)}`);
   } else if (route.name === "confronto") {
     goTo(`#/prodotto/${encodeURIComponent(route.slug1)}`);
+  } else if (route.name === "lista") {
+    goTo("#/");
   } else {
     goTo("#/");
   }
