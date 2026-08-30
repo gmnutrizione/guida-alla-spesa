@@ -191,6 +191,7 @@ function currentRoute() {
   if (parts[0] === "confronto" && parts[1] && parts[2]) return { name: "confronto", slug1: decodeURIComponent(parts[1]), slug2: decodeURIComponent(parts[2]) };
   if (parts[0] === "confronto" && parts[1]) return { name: "confronto-scegli", slug1: decodeURIComponent(parts[1]) };
   if (parts[0] === "lista") return { name: "lista" };
+  if (parts[0] === "tutorial") return { name: "tutorial", step: parseInt(parts[1] || "0", 10) || 0 };
   return { name: "home" };
 }
 
@@ -213,6 +214,7 @@ function render() {
   else if (route.name === "confronto-scegli") renderConfrontoScegli(route.slug1);
   else if (route.name === "confronto") renderConfronto(route.slug1, route.slug2);
   else if (route.name === "lista") renderLista();
+  else if (route.name === "tutorial") renderTutorial(route.step);
   else renderHome();
   window.scrollTo(0, 0);
 }
@@ -251,11 +253,17 @@ function renderHome() {
       </select>
       <svg class="select-icon" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>
-    <button class="list-cta" id="goListBtn">La tua lista della spesa${listCount() ? ` (${listCount()})` : ""}</button>`;
+    <h3 class="section-title">Lista della spesa</h3>
+    <button class="list-cta" id="goListBtn">La tua lista${listCount() ? ` (${listCount()})` : ""}</button>
+    <button class="tutorial-cta" id="tutorialBtn">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="8" r="1" fill="currentColor"/></svg>
+      Come funziona l'app
+    </button>`;
   view.innerHTML = html;
   brandText.textContent = "Guida alla spesa";
 
   document.getElementById("goListBtn").addEventListener("click", () => goTo("#/lista"));
+  document.getElementById("tutorialBtn").addEventListener("click", () => goTo("#/tutorial/0"));
 
   const input = document.getElementById("searchInput");
   input.addEventListener("input", () => {
@@ -595,6 +603,57 @@ function renderLista() {
 
 
 
+const TUTORIAL_STEPS = [
+  {
+    title: "Cerca un alimento",
+    desc: "Dalla home usa la barra di ricerca per trovare subito un prodotto scrivendone il nome, anche solo in parte."
+  },
+  {
+    title: "Sfoglia per categoria",
+    desc: "In alternativa, scegli una categoria dal menù per vedere tutti i prodotti di quel reparto del supermercato."
+  },
+  {
+    title: "La scheda del prodotto",
+    desc: "Ogni prodotto mostra la foto, la marca, un punteggio da 1 a 10 e un consiglio nutrizionale. Puoi passare dai valori per 100 g a quelli per la porzione con l'interruttore in alto."
+  },
+  {
+    title: "Confronta due alimenti",
+    desc: "Dalla scheda di un prodotto tocca \"Confronta con...\" per metterlo a paragone con un altro alimento e vedere subito quale ha meno grassi saturi, zuccheri o sale."
+  },
+  {
+    title: "La tua lista della spesa",
+    desc: "Tocca \"Aggiungi alla lista\" sui prodotti che ti servono. Mentre fai la spesa, spuntali: scenderanno automaticamente in fondo, così in cima restano sempre quelli ancora da prendere."
+  }
+];
+
+function renderTutorial(step) {
+  const total = TUTORIAL_STEPS.length;
+  const i = Math.max(0, Math.min(total - 1, step));
+  const s = TUTORIAL_STEPS[i];
+  brandText.textContent = "Come funziona";
+
+  view.innerHTML = `
+    <div class="tutorial-card">
+      <span class="eyebrow">Passo ${i + 1} di ${total}</span>
+      <h2 class="tutorial-title">${escapeHtml(s.title)}</h2>
+      <p class="tutorial-desc">${escapeHtml(s.desc)}</p>
+    </div>
+    <div class="tutorial-dots">
+      ${TUTORIAL_STEPS.map((_, idx) => `<span class="tutorial-dot ${idx === i ? "active" : ""}"></span>`).join("")}
+    </div>
+    <div class="tutorial-nav">
+      ${i > 0 ? `<button class="compare-btn" id="tutPrev">Indietro</button>` : ""}
+      <button class="list-cta" id="tutNext">${i === total - 1 ? "Inizia ad usarla" : "Avanti"}</button>
+    </div>`;
+
+  if (i > 0) {
+    document.getElementById("tutPrev").addEventListener("click", () => goTo(`#/tutorial/${i - 1}`));
+  }
+  document.getElementById("tutNext").addEventListener("click", () => {
+    if (i === total - 1) goTo("#/"); else goTo(`#/tutorial/${i + 1}`);
+  });
+}
+
 backBtn.addEventListener("click", () => {
   const route = currentRoute();
   if (route.name === "prodotto") {
@@ -606,6 +665,8 @@ backBtn.addEventListener("click", () => {
     goTo(`#/prodotto/${encodeURIComponent(route.slug1)}`);
   } else if (route.name === "lista") {
     goTo("#/");
+  } else if (route.name === "tutorial") {
+    goTo(route.step > 0 ? `#/tutorial/${route.step - 1}` : "#/");
   } else {
     goTo("#/");
   }
