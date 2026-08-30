@@ -129,7 +129,7 @@ body { min-height: 100vh; min-height: 100dvh; }
   border: 1px solid var(--line);
   background: #fff;
   font-family: var(--font-body);
-  font-size: calc(15px * var(--scale-body));
+  font-size: max(16px, calc(15px * var(--scale-body)));
   color: var(--ink);
 }
 .search-box input:focus { outline: none; border-color: var(--accent); }
@@ -161,7 +161,7 @@ body { min-height: 100vh; min-height: 100dvh; }
   color: #fff;
   font-family: var(--font-body);
   font-weight: 600;
-  font-size: calc(15px * var(--scale-body));
+  font-size: max(16px, calc(15px * var(--scale-body)));
   cursor: pointer;
 }
 .category-select select:focus { outline: none; border-color: var(--accent-deep); }
