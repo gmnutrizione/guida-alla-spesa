@@ -208,17 +208,15 @@ function renderHome() {
       <input id="searchInput" type="text" placeholder="Cerca un alimento, es. yogurt" autocomplete="off">
     </div>
     <h3 class="section-title">Categorie</h3>
-    <div class="category-grid">
-      ${CATEGORIES.map(cat => {
-        const count = PRODUCTS.filter(p => p.categoria === cat).length;
-        return `
-        <button class="card-cat" data-cat="${escapeHtml(cat)}">
-          <span>
-            <span class="cat-name">${escapeHtml(cat)}</span>
-            <span class="cat-count">${count} ${count === 1 ? "prodotto" : "prodotti"}</span>
-          </span>
-        </button>`;
-      }).join("")}
+    <div class="category-select">
+      <select id="categorySelect">
+        <option value="" selected disabled>Scegli una categoria</option>
+        ${CATEGORIES.map(cat => {
+          const count = PRODUCTS.filter(p => p.categoria === cat).length;
+          return `<option value="${escapeHtml(cat)}">${escapeHtml(cat)} (${count})</option>`;
+        }).join("")}
+      </select>
+      <svg class="select-icon" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
     </div>`;
   view.innerHTML = html;
   brandText.textContent = "Guida alla spesa";
@@ -229,8 +227,9 @@ function renderHome() {
     if (q.length >= 2) goTo(`#/cerca/${encodeURIComponent(q)}`);
   });
 
-  view.querySelectorAll(".card-cat").forEach(btn => {
-    btn.addEventListener("click", () => goTo(`#/categoria/${encodeURIComponent(btn.dataset.cat)}`));
+  const select = document.getElementById("categorySelect");
+  select.addEventListener("change", () => {
+    if (select.value) goTo(`#/categoria/${encodeURIComponent(select.value)}`);
   });
 }
 
