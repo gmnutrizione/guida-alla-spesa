@@ -162,6 +162,8 @@ function currentRoute() {
   if (parts[0] === "categoria" && parts[1]) return { name: "categoria", categoria: decodeURIComponent(parts[1]) };
   if (parts[0] === "prodotto" && parts[1]) return { name: "prodotto", slug: decodeURIComponent(parts[1]) };
   if (parts[0] === "cerca") return { name: "cerca", q: decodeURIComponent(parts[1] || "") };
+  if (parts[0] === "confronto" && parts[1] && parts[2]) return { name: "confronto", slug1: decodeURIComponent(parts[1]), slug2: decodeURIComponent(parts[2]) };
+  if (parts[0] === "confronto" && parts[1]) return { name: "confronto-scegli", slug1: decodeURIComponent(parts[1]) };
   return { name: "home" };
 }
 
@@ -180,6 +182,8 @@ function render() {
   if (route.name === "categoria") renderCategoria(route.categoria);
   else if (route.name === "prodotto") renderProdotto(route.slug);
   else if (route.name === "cerca") renderCerca(route.q);
+  else if (route.name === "confronto-scegli") renderConfrontoScegli(route.slug1);
+  else if (route.name === "confronto") renderConfronto(route.slug1, route.slug2);
   else renderHome();
   window.scrollTo(0, 0);
 }
@@ -330,7 +334,6 @@ function renderProdotto(slug) {
     : `<div class="detail-photo"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg></div>`;
 
   const punteggio = Math.max(0, Math.min(10, p.punteggio));
-  const ringDeg = Math.round((punteggio / 10) * 360);
 
   view.innerHTML = `
     <span class="category-badge">${escapeHtml(p.categoria)}</span>
@@ -342,9 +345,7 @@ function renderProdotto(slug) {
           <h2 class="detail-name">${escapeHtml(p.nome)}</h2>
           ${p.marca ? `<span class="detail-brand">${escapeHtml(p.marca)}</span>` : ""}
         </div>
-        <div class="score-ring" style="background: conic-gradient(var(--accent) 0deg ${ringDeg}deg, var(--paper-dim) ${ringDeg}deg 360deg);">
-          <div class="score-inner">${punteggio}</div>
-        </div>
+        ${scoreRingHtml(punteggio)}
       </div>
 
       <div class="unit-toggle">
@@ -365,7 +366,14 @@ function renderProdotto(slug) {
         <h2>Consiglio nutrizionale</h2>
         <p>${escapeHtml(p.descrizione)}</p>
       </div>` : ""}
+
+      <button class="compare-btn" id="compareBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Confronta con un altro alimento
+      </button>
     </div>`;
+
+  document.getElementById("compareBtn").addEventListener("click", () => goTo(`#/confronto/${encodeURIComponent(p.slug)}`));
 
   const btn100 = document.getElementById("btn100");
   const btnPorz = document.getElementById("btnPorz");
@@ -384,15 +392,102 @@ function renderProdotto(slug) {
   });
 }
 
-// ==========================================================================
-// NAVIGAZIONE (tasto indietro)
-// ==========================================================================
+function scoreRingHtml(punteggio, size) {
+  const p = Math.max(0, Math.min(10, punteggio));
+  const deg = Math.round((p / 10) * 360);
+  const cls = size === "small" ? "compare-score" : "score-ring";
+  return `
+    <div class="${cls}" style="background: conic-gradient(var(--accent) 0deg ${deg}deg, var(--paper-dim) ${deg}deg 360deg);">
+      <div class="score-inner">${p}</div>
+    </div>`;
+}
+
+function renderConfrontoScegli(slug1) {
+  const p1 = PRODUCTS.find(x => x.slug === slug1);
+  if (!p1) { view.innerHTML = `<div class="empty"><p>Prodotto non trovato.</p></div>`; return; }
+  brandText.textContent = "Confronta";
+  view.innerHTML = `
+    <div class="compare-pick-current">Stai confrontando <strong>${escapeHtml(p1.nome)}</strong>. Cerca il secondo alimento.</div>
+    <div class="search-box">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      <input id="compareSearchInput" type="text" placeholder="Cerca un alimento da confrontare" autocomplete="off">
+    </div>
+    <div id="compareResults"></div>`;
+
+  const input = document.getElementById("compareSearchInput");
+  const results = document.getElementById("compareResults");
+  input.focus();
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    if (q.length < 2) { results.innerHTML = ""; return; }
+    const items = PRODUCTS.filter(p => p.slug !== p1.slug && p.nome.toLowerCase().includes(q));
+    results.innerHTML = items.length
+      ? `<div class="product-list">${items.map(productRowHtml).join("")}</div>`
+      : `<div class="empty"><p>Nessun alimento trovato.</p></div>`;
+    results.querySelectorAll(".product-row").forEach(btn => {
+      btn.addEventListener("click", () => goTo(`#/confronto/${encodeURIComponent(p1.slug)}/${encodeURIComponent(btn.dataset.slug)}`));
+    });
+  });
+}
+
+function compareRowHtml(label, aVal, bVal, unit, highlightLower) {
+  let aClass = "compare-val";
+  let bClass = "compare-val right";
+  if (highlightLower && aVal !== bVal) {
+    if (aVal < bVal) aClass += " better";
+    else bClass += " better";
+  }
+  return `
+    <div class="compare-row">
+      <span class="${aClass}">${aVal}${unit}</span>
+      <span class="compare-label">${label}</span>
+      <span class="${bClass}">${bVal}${unit}</span>
+    </div>`;
+}
+
+function renderConfronto(slug1, slug2) {
+  const p1 = PRODUCTS.find(x => x.slug === slug1);
+  const p2 = PRODUCTS.find(x => x.slug === slug2);
+  if (!p1 || !p2) { view.innerHTML = `<div class="empty"><p>Prodotto non trovato.</p></div>`; return; }
+  brandText.textContent = "Confronto";
+
+  const photo = (p) => p.immagine
+    ? `<div class="compare-photo" style="background-image:url('${escapeHtml(p.immagine)}')"></div>`
+    : `<div class="compare-photo"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg></div>`;
+
+  const head = (p) => `
+    <div class="compare-head">
+      ${photo(p)}
+      <span class="compare-name">${escapeHtml(p.nome)}</span>
+      ${p.marca ? `<span class="compare-brand">${escapeHtml(p.marca)}</span>` : ""}
+      ${scoreRingHtml(p.punteggio, "small")}
+    </div>`;
+
+  view.innerHTML = `
+    <div class="compare-heads">${head(p1)}${head(p2)}</div>
+    <div class="compare-table">
+      ${compareRowHtml("Kcal", p1.kcal, p2.kcal, "", false)}
+      ${compareRowHtml("Grassi", p1.grassi, p2.grassi, " g", false)}
+      ${compareRowHtml("di cui saturi", p1.saturi, p2.saturi, " g", true)}
+      ${compareRowHtml("Carboidrati", p1.carbo, p2.carbo, " g", false)}
+      ${compareRowHtml("di cui zuccheri", p1.zuccheri, p2.zuccheri, " g", true)}
+      ${compareRowHtml("Proteine", p1.proteine, p2.proteine, " g", false)}
+      ${compareRowHtml("Fibre", p1.fibre, p2.fibre, " g", false)}
+      ${compareRowHtml("Sale", p1.sale, p2.sale, " g", true)}
+    </div>`;
+}
+
+
 
 backBtn.addEventListener("click", () => {
   const route = currentRoute();
   if (route.name === "prodotto") {
     const p = PRODUCTS.find(x => x.slug === route.slug);
     goTo(p ? `#/categoria/${encodeURIComponent(p.categoria)}` : "#/");
+  } else if (route.name === "confronto-scegli") {
+    goTo(`#/prodotto/${encodeURIComponent(route.slug1)}`);
+  } else if (route.name === "confronto") {
+    goTo(`#/prodotto/${encodeURIComponent(route.slug1)}`);
   } else {
     goTo("#/");
   }

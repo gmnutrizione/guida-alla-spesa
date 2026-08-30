@@ -358,7 +358,105 @@ body { min-height: 100vh; min-height: 100dvh; }
   margin: 0;
 }
 
-/* Loading */
+/* Confronto prodotti */
+.compare-heads {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.compare-head { text-align: center; }
+.compare-photo {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  background: var(--paper-dim) center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--ink-soft);
+  margin-bottom: 8px;
+}
+.compare-name {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: calc(13.5px * var(--scale-heading));
+  line-height: 1.2;
+}
+.compare-brand {
+  font-size: calc(11px * var(--scale-body));
+  color: var(--ink-soft);
+  margin-top: 2px;
+  display: block;
+}
+.compare-score {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  margin-top: 8px;
+}
+.compare-score .score-inner {
+  width: 26px;
+  height: 26px;
+  font-size: calc(12px * var(--scale-body));
+}
+.compare-table {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 4px 14px;
+}
+.compare-row {
+  display: grid;
+  grid-template-columns: 1fr 88px 1fr;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px dashed var(--line);
+}
+.compare-row:last-child { border-bottom: none; }
+.compare-val {
+  font-size: calc(13px * var(--scale-body));
+  font-weight: 600;
+}
+.compare-val.right { text-align: right; }
+.compare-val.better {
+  color: var(--accent-deep);
+  font-size: calc(15px * var(--scale-body));
+}
+.compare-label {
+  font-size: calc(10.5px * var(--scale-body));
+  color: var(--ink-soft);
+  text-align: center;
+}
+.compare-pick-current {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 16px;
+  font-size: calc(13.5px * var(--scale-body));
+  color: var(--ink-soft);
+}
+.compare-pick-current strong { color: var(--ink); }
+.compare-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--accent-deep);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: calc(13px * var(--scale-body));
+  padding: 9px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  margin-top: 16px;
+}
+.compare-btn:hover { border-color: var(--accent); }
 .loader {
   display: flex;
   flex-direction: column;
