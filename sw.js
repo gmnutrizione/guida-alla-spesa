@@ -1,4 +1,4 @@
-const CACHE_NAME = "guida-la-spesa-v3";
+const CACHE_NAME = "guida-la-spesa-v4";
 const APP_SHELL = [
   "./",
   "index.html",
