@@ -336,7 +336,13 @@ function renderProdotto(slug) {
   const punteggio = Math.max(0, Math.min(10, p.punteggio));
 
   view.innerHTML = `
-    <span class="category-badge">${escapeHtml(p.categoria)}</span>
+    <div class="detail-top-row">
+      <span class="category-badge">${escapeHtml(p.categoria)}</span>
+      <button class="compare-btn" id="compareBtn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Confronta con un altro alimento
+      </button>
+    </div>
     <div class="detail-card">
       <div class="detail-head">
         ${photo}
@@ -366,11 +372,6 @@ function renderProdotto(slug) {
         <h2>Consiglio nutrizionale</h2>
         <p>${escapeHtml(p.descrizione)}</p>
       </div>` : ""}
-
-      <button class="compare-btn" id="compareBtn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M8 3L4 7l4 4M4 7h16M16 21l4-4-4-4M20 17H4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Confronta con un altro alimento
-      </button>
     </div>`;
 
   document.getElementById("compareBtn").addEventListener("click", () => goTo(`#/confronto/${encodeURIComponent(p.slug)}`));
@@ -407,26 +408,44 @@ function renderConfrontoScegli(slug1) {
   if (!p1) { view.innerHTML = `<div class="empty"><p>Prodotto non trovato.</p></div>`; return; }
   brandText.textContent = "Confronta";
   view.innerHTML = `
-    <div class="compare-pick-current">Stai confrontando <strong>${escapeHtml(p1.nome)}</strong>. Cerca il secondo alimento.</div>
+    <div class="compare-pick-current">Stai confrontando <strong>${escapeHtml(p1.nome)}</strong>. Cerca il secondo alimento o scegli una categoria.</div>
     <div class="search-box">
       <svg class="search-icon" viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       <input id="compareSearchInput" type="text" placeholder="Cerca un alimento da confrontare" autocomplete="off">
     </div>
+    <div class="category-select">
+      <select id="compareCategorySelect">
+        <option value="" selected disabled>Scegli una categoria</option>
+        ${CATEGORIES.map(cat => `<option value="${escapeHtml(cat)}">${escapeHtml(cat)}</option>`).join("")}
+      </select>
+      <svg class="select-icon" viewBox="0 0 24 24" fill="none"><path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
     <div id="compareResults"></div>`;
 
   const input = document.getElementById("compareSearchInput");
+  const select = document.getElementById("compareCategorySelect");
   const results = document.getElementById("compareResults");
   input.focus();
-  input.addEventListener("input", () => {
-    const q = input.value.trim().toLowerCase();
-    if (q.length < 2) { results.innerHTML = ""; return; }
-    const items = PRODUCTS.filter(p => p.slug !== p1.slug && p.nome.toLowerCase().includes(q));
+
+  function showResults(items) {
     results.innerHTML = items.length
       ? `<div class="product-list">${items.map(productRowHtml).join("")}</div>`
       : `<div class="empty"><p>Nessun alimento trovato.</p></div>`;
     results.querySelectorAll(".product-row").forEach(btn => {
       btn.addEventListener("click", () => goTo(`#/confronto/${encodeURIComponent(p1.slug)}/${encodeURIComponent(btn.dataset.slug)}`));
     });
+  }
+
+  input.addEventListener("input", () => {
+    const q = input.value.trim().toLowerCase();
+    if (q.length < 2) { results.innerHTML = ""; return; }
+    select.selectedIndex = 0;
+    showResults(PRODUCTS.filter(p => p.slug !== p1.slug && p.nome.toLowerCase().includes(q)));
+  });
+
+  select.addEventListener("change", () => {
+    input.value = "";
+    showResults(PRODUCTS.filter(p => p.slug !== p1.slug && p.categoria === select.value));
   });
 }
 
