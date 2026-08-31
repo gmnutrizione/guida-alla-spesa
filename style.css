@@ -260,6 +260,24 @@ body { min-height: 100vh; min-height: 100dvh; }
 }
 .product-row:hover, .product-row:focus-visible { border-color: var(--accent); outline: none; }
 
+.row-add-pill {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--accent-deep);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: calc(12px * var(--scale-body));
+  padding: 7px 10px;
+  border-radius: 20px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+.row-add-pill span { font-size: 14px; line-height: 1; }
+.row-add-pill.added { background: var(--accent); border-color: var(--accent); color: #fff; }
+
 .product-thumb {
   width: 56px;
   height: 56px;
@@ -600,9 +618,21 @@ body { min-height: 100vh; min-height: 100dvh; }
 .lista-clear-btn {
   flex: 1;
   justify-content: center;
-  font-size: calc(11.5px * var(--scale-body));
-  padding: 8px 6px;
+  background: var(--alert);
+  border-color: var(--alert);
+  color: #fff;
+  font-size: calc(14px * var(--scale-body));
+  padding: 13px 6px;
   white-space: nowrap;
+}
+.lista-clear-btn:hover { border-color: var(--alert); opacity: 0.92; }
+
+.gate-card {
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 28px 22px;
+  margin-top: 40px;
 }
 
 /* Tutorial */

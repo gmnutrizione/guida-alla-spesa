@@ -5,6 +5,9 @@
 // Link CSV pubblicato del Google Sheet collegato al Form "Guida la Spesa"
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vR6CZuwcz5yV9JmezGn7FSARpyVuBFdcLy9wz9kNuV3atrPUv2gVOF_QsvjbfYcRVNJDhxUP6YEHwcT/pub?gid=38068885&single=true&output=csv";
 
+// Link CSV pubblicato del Google Sheet con i codici di accesso (nome paziente, codice, attivo)
+const CODES_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTrIp8FLD8GbAyMwo8ITBTtItMRfTGwXwt-G5I5VQyePNuOANLaRgotsG8JN-M5ylxIrrAUx79oNlJy/pub?gid=0&single=true&output=csv";
+
 // Le 27 categorie, nell'ordine in cui appaiono in home
 const CATEGORIES = [
   "Frutta", "Verdura", "Cereali da colazione", "Cereali in chicco", "Pane",
@@ -277,25 +280,64 @@ function renderHome() {
   });
 }
 
+function rowAddPillHtml(slug) {
+  const added = isInList(slug);
+  return `
+    <button class="row-add-pill ${added ? "added" : ""}" data-slug="${escapeHtml(slug)}" aria-label="${added ? "Rimuovi dalla lista" : "Aggiungi alla lista"}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.2 11.4a2 2 0 002 1.6h8.6a2 2 0 002-1.6L21 8H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+      ${added
+        ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+        : `<span>+</span>`}
+    </button>`;
+}
+
+function refreshPillState(btn) {
+  const slug = btn.dataset.slug;
+  const added = isInList(slug);
+  btn.classList.toggle("added", added);
+  btn.setAttribute("aria-label", added ? "Rimuovi dalla lista" : "Aggiungi alla lista");
+  btn.innerHTML = `
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M3 4h2l2.2 11.4a2 2 0 002 1.6h8.6a2 2 0 002-1.6L21 8H6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="9" cy="20" r="1.4" fill="currentColor"/><circle cx="17" cy="20" r="1.4" fill="currentColor"/></svg>
+    ${added
+      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+      : `<span>+</span>`}`;
+}
+
+function bindAddPillButtons(root) {
+  root.querySelectorAll(".row-add-pill").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const slug = btn.dataset.slug;
+      if (isInList(slug)) removeFromList(slug); else addToList(slug);
+      updateListBadge();
+      refreshPillState(btn);
+    });
+  });
+}
+
 function productRowHtml(p) {
   const thumb = p.immagine
     ? `<div class="product-thumb" style="background-image:url('${escapeHtml(p.immagine)}')"></div>`
     : `<div class="product-thumb"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="9" r="1.5"/><path d="M21 15l-5-5-9 9"/></svg></div>`;
   return `
-    <button class="product-row" data-slug="${escapeHtml(p.slug)}">
+    <div class="product-row" data-slug="${escapeHtml(p.slug)}">
       ${thumb}
       <div class="product-info">
         <p class="product-name">${escapeHtml(p.nome)}</p>
         <p class="product-brand">${escapeHtml(p.marca)}</p>
       </div>
-      <svg class="chevron" width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    </button>`;
+      ${rowAddPillHtml(p.slug)}
+    </div>`;
 }
 
 function attachProductRowEvents() {
-  view.querySelectorAll(".product-row").forEach(btn => {
-    btn.addEventListener("click", () => goTo(`#/prodotto/${encodeURIComponent(btn.dataset.slug)}`));
+  view.querySelectorAll(".product-row").forEach(row => {
+    row.addEventListener("click", (e) => {
+      if (e.target.closest(".row-add-pill")) return;
+      goTo(`#/prodotto/${encodeURIComponent(row.dataset.slug)}`);
+    });
   });
+  bindAddPillButtons(view);
 }
 
 function renderCategoria(categoria) {
@@ -473,9 +515,13 @@ function renderConfrontoScegli(slug1) {
     results.innerHTML = items.length
       ? `<div class="product-list">${items.map(productRowHtml).join("")}</div>`
       : `<div class="empty"><p>Nessun alimento trovato.</p></div>`;
-    results.querySelectorAll(".product-row").forEach(btn => {
-      btn.addEventListener("click", () => goTo(`#/confronto/${encodeURIComponent(p1.slug)}/${encodeURIComponent(btn.dataset.slug)}`));
+    results.querySelectorAll(".product-row").forEach(row => {
+      row.addEventListener("click", (e) => {
+        if (e.target.closest(".row-add-pill")) return;
+        goTo(`#/confronto/${encodeURIComponent(p1.slug)}/${encodeURIComponent(row.dataset.slug)}`);
+      });
     });
+    bindAddPillButtons(results);
   }
 
   input.addEventListener("input", () => {
@@ -587,7 +633,7 @@ function renderLista() {
   html += `
     <div class="lista-actions-row">
       <button class="list-cta lista-uncheck-btn" id="uncheckAllBtn">Togli le spunte</button>
-      <button class="compare-btn lista-clear-btn" id="clearListBtn">Svuota lista</button>
+      <button class="compare-btn lista-clear-btn" id="clearListBtn">Svuota</button>
     </div>`;
   view.innerHTML = html;
 
@@ -682,13 +728,107 @@ backBtn.addEventListener("click", () => {
 });
 
 // ==========================================================================
+// CONTROLLO ACCESSI (codice personale per paziente)
+// ==========================================================================
+
+const ACCESS_KEY = "guidaSpesaAccessCode";
+const listBadgeEl = document.getElementById("listBadge");
+
+async function fetchAccessCodes() {
+  const res = await fetch(CODES_CSV_URL, { cache: "no-store" });
+  if (!res.ok) throw new Error("Impossibile leggere i codici di accesso.");
+  const text = await res.text();
+  const rows = parseCSV(text);
+  if (!rows.length) return {};
+  const headers = rows[0].map(h => h.trim().toLowerCase());
+  const iCode = headers.indexOf("codice");
+  const iActive = headers.indexOf("attivo");
+  const iName = headers.indexOf("nome paziente");
+  const map = {};
+  rows.slice(1).forEach(r => {
+    const code = (r[iCode] || "").trim();
+    if (!code) return;
+    const activeRaw = (r[iActive] || "").trim().toLowerCase();
+    const active = ["si", "sì", "true", "1", "attivo", "yes"].includes(activeRaw);
+    map[code.toLowerCase()] = { nome: (r[iName] || "").trim(), active };
+  });
+  return map;
+}
+
+function renderGate(message, isError) {
+  backBtn.hidden = true;
+  listBadgeEl.hidden = true;
+  brandText.textContent = "Accesso";
+  view.innerHTML = `
+    <div class="gate-card">
+      <p class="eyebrow">Guida alla spesa</p>
+      <h2 class="tutorial-title" style="text-align:left;">Inserisci il tuo codice di accesso</h2>
+      <p class="tutorial-desc" style="text-align:left;margin-bottom:16px;">Te lo ha fornito il tuo nutrizionista. Se non ne hai uno, chiediglielo direttamente.</p>
+      <div class="search-box" style="margin-bottom:12px;">
+        <input id="gateInput" type="text" placeholder="Codice di accesso" autocomplete="off" style="padding-left:16px;">
+      </div>
+      ${message ? `<p style="color:${isError ? "var(--alert)" : "var(--ink-soft)"};font-size:13px;margin:0 0 14px;">${escapeHtml(message)}</p>` : ""}
+      <button class="list-cta" id="gateSubmit" style="margin-top:0;">Entra</button>
+    </div>`;
+  const input = document.getElementById("gateInput");
+  input.focus();
+  const submit = () => {
+    const val = input.value.trim();
+    if (val) attemptAccess(val);
+  };
+  document.getElementById("gateSubmit").addEventListener("click", submit);
+  input.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+}
+
+function attemptAccess(code) {
+  renderGate("Verifica in corso...", false);
+  fetchAccessCodes()
+    .then(map => {
+      const entry = map[code.trim().toLowerCase()];
+      if (entry && entry.active) {
+        localStorage.setItem(ACCESS_KEY, code.trim());
+        startApp();
+      } else {
+        renderGate("Codice non valido o non più attivo. Contatta il tuo nutrizionista.", true);
+      }
+    })
+    .catch(() => {
+      renderGate("Serve una connessione internet per il primo accesso. Riprova quando sei online.", true);
+    });
+}
+
+function checkAccess() {
+  const saved = localStorage.getItem(ACCESS_KEY);
+  if (!saved) { renderGate(); return; }
+  fetchAccessCodes()
+    .then(map => {
+      const entry = map[saved.trim().toLowerCase()];
+      if (entry && entry.active) {
+        startApp();
+      } else {
+        localStorage.removeItem(ACCESS_KEY);
+        renderGate("Il tuo accesso è stato disattivato. Contatta il tuo nutrizionista.", true);
+      }
+    })
+    .catch(() => {
+      // Offline: consenti l'accesso provvisorio con l'ultimo codice valido salvato
+      startApp();
+    });
+}
+
+function startApp() {
+  listBadgeEl.hidden = listCount() === 0;
+  renderLoading();
+  loadProducts()
+    .then(products => { PRODUCTS = products; render(); })
+    .catch(err => { LOAD_ERROR = err; render(); });
+}
+
+// ==========================================================================
 // AVVIO
 // ==========================================================================
 
-renderLoading();
-loadProducts()
-  .then(products => { PRODUCTS = products; render(); })
-  .catch(err => { LOAD_ERROR = err; render(); });
+checkAccess();
 
 // Registrazione service worker (funzionamento offline)
 if ("serviceWorker" in navigator) {
