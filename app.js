@@ -260,6 +260,8 @@ window.addEventListener("hashchange", render);
 // RENDER
 // ==========================================================================
 
+let LAST_ROUTE_KEY = null;
+
 function render() {
   updateListBadge();
   if (LOAD_ERROR) { renderError(); return; }
@@ -273,7 +275,10 @@ function render() {
   else if (route.name === "lista") renderLista();
   else if (route.name === "tutorial") renderTutorial(route.step);
   else renderHome();
-  window.scrollTo(0, 0);
+
+  const routeKey = JSON.stringify(route);
+  if (routeKey !== LAST_ROUTE_KEY) window.scrollTo(0, 0);
+  LAST_ROUTE_KEY = routeKey;
 }
 
 function renderLoading() {
@@ -666,10 +671,10 @@ function bindOtherAddButton() {
   btn.addEventListener("click", () => {
     const wrap = document.getElementById("otherAddWrap");
     wrap.innerHTML = `
-      <div class="search-box" style="margin-bottom:8px;">
+      <div class="search-box" style="margin-top:8px;margin-bottom:8px;">
         <input id="otherInput" type="text" placeholder="Es. detersivo piatti" autocomplete="off" style="padding-left:16px;">
       </div>
-      <button class="list-cta" id="otherConfirmBtn" style="margin-top:0;">Aggiungi</button>`;
+      <button class="add-other-btn" id="otherConfirmBtn">Aggiungi</button>`;
     const input = document.getElementById("otherInput");
     input.focus();
     const confirm = () => {
@@ -686,21 +691,30 @@ function bindOtherAddButton() {
 
 function makeListDraggable(container) {
   let dragEl = null;
+  let rafPending = false;
+  let lastY = 0;
 
-  function onMove(ev) {
+  function reposition() {
+    rafPending = false;
     if (!dragEl) return;
-    const y = ev.clientY;
     const siblings = [...container.querySelectorAll(".shopping-item:not(.dragging)")];
     for (const sib of siblings) {
       const rect = sib.getBoundingClientRect();
       const mid = rect.top + rect.height / 2;
-      if (y < mid && sib.previousElementSibling !== dragEl) {
-        container.insertBefore(dragEl, sib);
-        break;
-      } else if (y >= mid && sib.nextElementSibling !== dragEl) {
-        container.insertBefore(dragEl, sib.nextSibling);
-        break;
+      if (lastY < mid) {
+        if (sib.previousElementSibling !== dragEl) container.insertBefore(dragEl, sib);
+        return;
       }
+    }
+    if (container.lastElementChild !== dragEl) container.appendChild(dragEl);
+  }
+
+  function onMove(ev) {
+    if (!dragEl) return;
+    lastY = ev.clientY;
+    if (!rafPending) {
+      rafPending = true;
+      requestAnimationFrame(reposition);
     }
   }
 
@@ -709,6 +723,7 @@ function makeListDraggable(container) {
     dragEl.classList.remove("dragging");
     document.removeEventListener("pointermove", onMove);
     document.removeEventListener("pointerup", onUp);
+    document.removeEventListener("pointercancel", onUp);
     const idsInOrder = [...container.querySelectorAll(".shopping-item")].map(el => el.dataset.id);
     reorderListByIds(idsInOrder);
     dragEl = null;
@@ -718,9 +733,11 @@ function makeListDraggable(container) {
     handle.addEventListener("pointerdown", (e) => {
       e.preventDefault();
       dragEl = handle.closest(".shopping-item");
+      try { handle.setPointerCapture(e.pointerId); } catch (err) {}
       dragEl.classList.add("dragging");
       document.addEventListener("pointermove", onMove);
       document.addEventListener("pointerup", onUp);
+      document.addEventListener("pointercancel", onUp);
     });
   });
 }

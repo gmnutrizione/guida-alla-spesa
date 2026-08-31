@@ -572,6 +572,7 @@ body { min-height: 100vh; min-height: 100dvh; }
 .shopping-item.dragging {
   opacity: 0.6;
   box-shadow: 0 8px 18px rgba(43,46,34,0.2);
+  touch-action: none;
 }
 .shopping-drag {
   background: none;
