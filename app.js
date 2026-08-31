@@ -29,19 +29,73 @@ let LOAD_ERROR = null;
 
 const LIST_KEY = "guidaSpesaLista";
 function loadShoppingList() {
-  try { return JSON.parse(localStorage.getItem(LIST_KEY)) || {}; }
-  catch (e) { return {}; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(LIST_KEY));
+    return Array.isArray(raw) ? raw : [];
+  } catch (e) { return []; }
 }
 function saveShoppingList() { localStorage.setItem(LIST_KEY, JSON.stringify(SHOPPING_LIST)); }
 let SHOPPING_LIST = loadShoppingList();
 
-function isInList(slug) { return Object.prototype.hasOwnProperty.call(SHOPPING_LIST, slug); }
-function addToList(slug) { SHOPPING_LIST[slug] = { checked: false }; saveShoppingList(); }
-function removeFromList(slug) { delete SHOPPING_LIST[slug]; saveShoppingList(); }
-function toggleChecked(slug) {
-  if (SHOPPING_LIST[slug]) { SHOPPING_LIST[slug].checked = !SHOPPING_LIST[slug].checked; saveShoppingList(); }
+function categoryOfItem(item) {
+  if (item.type === "other") return "Altro";
+  const p = PRODUCTS.find(x => x.slug === item.slug);
+  return p ? p.categoria : "Altro";
 }
-function listCount() { return Object.keys(SHOPPING_LIST).length; }
+
+function insertGrouped(newItem, categoria) {
+  const idx = SHOPPING_LIST.findIndex(it => categoryOfItem(it) === categoria);
+  if (idx === -1) SHOPPING_LIST.push(newItem);
+  else SHOPPING_LIST.splice(idx + 1, 0, newItem);
+}
+
+function isInList(slug) { return SHOPPING_LIST.some(it => it.type === "product" && it.slug === slug); }
+
+function addToList(slug) {
+  if (isInList(slug)) return;
+  const p = PRODUCTS.find(x => x.slug === slug);
+  insertGrouped({ id: "p:" + slug, type: "product", slug, checked: false }, p ? p.categoria : "Altro");
+  saveShoppingList();
+}
+
+function addOtherItem(text) {
+  const id = "o:" + Date.now() + Math.random().toString(36).slice(2, 7);
+  insertGrouped({ id, type: "other", text, checked: false }, "Altro");
+  saveShoppingList();
+}
+
+function removeFromList(slug) {
+  SHOPPING_LIST = SHOPPING_LIST.filter(it => !(it.type === "product" && it.slug === slug));
+  saveShoppingList();
+}
+
+function removeById(id) {
+  SHOPPING_LIST = SHOPPING_LIST.filter(it => it.id !== id);
+  saveShoppingList();
+}
+
+function toggleCheckedById(id) {
+  const it = SHOPPING_LIST.find(x => x.id === id);
+  if (!it) return;
+  it.checked = !it.checked;
+  SHOPPING_LIST = SHOPPING_LIST.filter(x => x.id !== id);
+  if (it.checked) {
+    SHOPPING_LIST.push(it);
+  } else {
+    const firstCheckedIdx = SHOPPING_LIST.findIndex(x => x.checked);
+    if (firstCheckedIdx === -1) SHOPPING_LIST.push(it);
+    else SHOPPING_LIST.splice(firstCheckedIdx, 0, it);
+  }
+  saveShoppingList();
+}
+
+function reorderListByIds(idsInOrder) {
+  const map = new Map(SHOPPING_LIST.map(it => [it.id, it]));
+  SHOPPING_LIST = idsInOrder.map(id => map.get(id)).filter(Boolean);
+  saveShoppingList();
+}
+
+function listCount() { return SHOPPING_LIST.length; }
 
 function updateListBadge() {
   const badge = document.getElementById("listBadge");
@@ -583,77 +637,144 @@ function renderConfronto(slug1, slug2) {
     </div>`;
 }
 
-function shoppingItemHtml(p, isChecked) {
+function shoppingItemHtml(row) {
   return `
-    <div class="shopping-item ${isChecked ? "checked" : ""}">
-      <button class="shopping-check" data-slug="${escapeHtml(p.slug)}" aria-label="Segna come preso">
+    <div class="shopping-item ${row.checked ? "checked" : ""}" data-id="${escapeHtml(row.id)}">
+      <button class="shopping-drag" aria-label="Trascina per riordinare">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="8" cy="6" r="1.3" fill="currentColor"/><circle cx="16" cy="6" r="1.3" fill="currentColor"/><circle cx="8" cy="12" r="1.3" fill="currentColor"/><circle cx="16" cy="12" r="1.3" fill="currentColor"/><circle cx="8" cy="18" r="1.3" fill="currentColor"/><circle cx="16" cy="18" r="1.3" fill="currentColor"/></svg>
+      </button>
+      <button class="shopping-check" data-id="${escapeHtml(row.id)}" aria-label="Segna come preso">
         <svg viewBox="0 0 24 24" fill="none"><path d="M5 13l4 4L19 7" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
       </button>
       <div class="shopping-info">
-        <div class="shopping-name">${escapeHtml(p.nome)}</div>
-        ${p.marca ? `<div class="shopping-brand">${escapeHtml(p.marca)}</div>` : ""}
+        <div class="shopping-name">${escapeHtml(row.nome)}</div>
+        <div class="shopping-brand">${escapeHtml(row.categoria)}</div>
       </div>
-      <button class="shopping-remove" data-slug="${escapeHtml(p.slug)}" aria-label="Rimuovi dalla lista">
+      <button class="shopping-remove" data-id="${escapeHtml(row.id)}" aria-label="Rimuovi dalla lista">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
       </button>
     </div>`;
 }
 
-function groupBySameCategory(items) {
-  const map = {};
-  items.forEach(x => { (map[x.product.categoria] = map[x.product.categoria] || []).push(x); });
-  return CATEGORIES.filter(cat => map[cat]).map(cat => ({ categoria: cat, items: map[cat] }));
+function otherAddSectionHtml() {
+  return `<div id="otherAddWrap"><button class="add-other-btn" id="addOtherBtn">+ Aggiungi prodotto non alimentare</button></div>`;
+}
+
+function bindOtherAddButton() {
+  const btn = document.getElementById("addOtherBtn");
+  if (!btn) return;
+  btn.addEventListener("click", () => {
+    const wrap = document.getElementById("otherAddWrap");
+    wrap.innerHTML = `
+      <div class="search-box" style="margin-bottom:8px;">
+        <input id="otherInput" type="text" placeholder="Es. detersivo piatti" autocomplete="off" style="padding-left:16px;">
+      </div>
+      <button class="list-cta" id="otherConfirmBtn" style="margin-top:0;">Aggiungi</button>`;
+    const input = document.getElementById("otherInput");
+    input.focus();
+    const confirm = () => {
+      const val = input.value.trim();
+      if (!val) return;
+      addOtherItem(val);
+      updateListBadge();
+      render();
+    };
+    document.getElementById("otherConfirmBtn").addEventListener("click", confirm);
+    input.addEventListener("keydown", (e) => { if (e.key === "Enter") confirm(); });
+  });
+}
+
+function makeListDraggable(container) {
+  let dragEl = null;
+
+  function onMove(ev) {
+    if (!dragEl) return;
+    const y = ev.clientY;
+    const siblings = [...container.querySelectorAll(".shopping-item:not(.dragging)")];
+    for (const sib of siblings) {
+      const rect = sib.getBoundingClientRect();
+      const mid = rect.top + rect.height / 2;
+      if (y < mid && sib.previousElementSibling !== dragEl) {
+        container.insertBefore(dragEl, sib);
+        break;
+      } else if (y >= mid && sib.nextElementSibling !== dragEl) {
+        container.insertBefore(dragEl, sib.nextSibling);
+        break;
+      }
+    }
+  }
+
+  function onUp() {
+    if (!dragEl) return;
+    dragEl.classList.remove("dragging");
+    document.removeEventListener("pointermove", onMove);
+    document.removeEventListener("pointerup", onUp);
+    const idsInOrder = [...container.querySelectorAll(".shopping-item")].map(el => el.dataset.id);
+    reorderListByIds(idsInOrder);
+    dragEl = null;
+  }
+
+  container.querySelectorAll(".shopping-drag").forEach(handle => {
+    handle.addEventListener("pointerdown", (e) => {
+      e.preventDefault();
+      dragEl = handle.closest(".shopping-item");
+      dragEl.classList.add("dragging");
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    });
+  });
 }
 
 function renderLista() {
   brandText.textContent = "La tua lista";
-  const slugs = Object.keys(SHOPPING_LIST);
-  const items = slugs
-    .map(slug => ({ slug, checked: SHOPPING_LIST[slug].checked, product: PRODUCTS.find(p => p.slug === slug) }))
-    .filter(x => x.product);
 
-  if (!items.length) {
-    view.innerHTML = `<div class="empty"><p>La tua lista della spesa è vuota. Aggiungi un alimento dalla sua scheda.</p></div>`;
-    return;
+  const rows = SHOPPING_LIST.map(it => {
+    if (it.type === "product") {
+      const p = PRODUCTS.find(x => x.slug === it.slug);
+      if (!p) return null;
+      return { id: it.id, checked: it.checked, nome: p.nome, categoria: p.categoria };
+    }
+    return { id: it.id, checked: it.checked, nome: it.text, categoria: "Altro" };
+  }).filter(Boolean);
+
+  let html = "";
+  if (!rows.length) {
+    html += `<div class="empty"><p>La tua lista della spesa è vuota. Aggiungi un alimento dalla sua scheda, oppure un prodotto non alimentare qui sotto.</p></div>`;
+  } else {
+    html += `<div class="shopping-list" id="shoppingListContainer">${rows.map(shoppingItemHtml).join("")}</div>`;
+    html += `
+      <div class="lista-actions-row">
+        <button class="list-cta lista-uncheck-btn" id="uncheckAllBtn">Togli le spunte</button>
+        <button class="compare-btn lista-clear-btn" id="clearListBtn">Svuota</button>
+      </div>`;
   }
-
-  const daPrendere = items.filter(x => !x.checked);
-  const presi = items.filter(x => x.checked);
-
-  let html = groupBySameCategory(daPrendere).map(g => `
-    <div class="shopping-group-title">${escapeHtml(g.categoria)}</div>
-    ${g.items.map(x => shoppingItemHtml(x.product, false)).join("")}
-  `).join("");
-
-  if (presi.length) {
-    html += `<div class="shopping-group-title">Già nel carrello</div>`;
-    html += presi.map(x => shoppingItemHtml(x.product, true)).join("");
-  }
-
-  html += `
-    <div class="lista-actions-row">
-      <button class="list-cta lista-uncheck-btn" id="uncheckAllBtn">Togli le spunte</button>
-      <button class="compare-btn lista-clear-btn" id="clearListBtn">Svuota</button>
-    </div>`;
+  html += otherAddSectionHtml();
   view.innerHTML = html;
 
-  view.querySelectorAll(".shopping-check").forEach(btn => {
-    btn.addEventListener("click", () => { toggleChecked(btn.dataset.slug); render(); });
-  });
-  view.querySelectorAll(".shopping-remove").forEach(btn => {
-    btn.addEventListener("click", () => { removeFromList(btn.dataset.slug); updateListBadge(); render(); });
-  });
-  document.getElementById("uncheckAllBtn").addEventListener("click", () => {
-    Object.keys(SHOPPING_LIST).forEach(slug => { SHOPPING_LIST[slug].checked = false; });
-    saveShoppingList();
-    render();
-  });
-  document.getElementById("clearListBtn").addEventListener("click", () => {
-    SHOPPING_LIST = {};
-    saveShoppingList();
-    updateListBadge();
-    render();
-  });
+  if (rows.length) {
+    const container = document.getElementById("shoppingListContainer");
+    container.querySelectorAll(".shopping-check").forEach(btn => {
+      btn.addEventListener("click", () => { toggleCheckedById(btn.dataset.id); render(); });
+    });
+    container.querySelectorAll(".shopping-remove").forEach(btn => {
+      btn.addEventListener("click", () => { removeById(btn.dataset.id); updateListBadge(); render(); });
+    });
+    makeListDraggable(container);
+
+    document.getElementById("uncheckAllBtn").addEventListener("click", () => {
+      SHOPPING_LIST.forEach(it => { it.checked = false; });
+      saveShoppingList();
+      render();
+    });
+    document.getElementById("clearListBtn").addEventListener("click", () => {
+      SHOPPING_LIST = [];
+      saveShoppingList();
+      updateListBadge();
+      render();
+    });
+  }
+
+  bindOtherAddButton();
 }
 
 

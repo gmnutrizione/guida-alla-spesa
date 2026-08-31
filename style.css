@@ -562,13 +562,29 @@ body { min-height: 100vh; min-height: 100dvh; }
 .shopping-item {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 10px 12px;
   margin-bottom: 8px;
 }
+.shopping-item.dragging {
+  opacity: 0.6;
+  box-shadow: 0 8px 18px rgba(43,46,34,0.2);
+}
+.shopping-drag {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  padding: 2px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  cursor: grab;
+  touch-action: none;
+}
+.shopping-drag:active { cursor: grabbing; }
 .shopping-check {
   width: 20px;
   height: 20px;
@@ -626,6 +642,23 @@ body { min-height: 100vh; min-height: 100dvh; }
   white-space: nowrap;
 }
 .lista-clear-btn:hover { border-color: var(--alert); opacity: 0.92; }
+
+.add-other-btn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  background: transparent;
+  border: 1px dashed var(--line);
+  color: var(--accent-deep);
+  font-family: var(--font-body);
+  font-weight: 600;
+  font-size: calc(13.5px * var(--scale-body));
+  padding: 12px;
+  border-radius: 14px;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.add-other-btn:hover { border-color: var(--accent); }
 
 .gate-card {
   background: #fff;
