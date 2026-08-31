@@ -584,7 +584,11 @@ function renderLista() {
     html += presi.map(x => shoppingItemHtml(x.product, true)).join("");
   }
 
-  html += `<button class="list-cta" id="clearListBtn">Svuota lista</button>`;
+  html += `
+    <div class="lista-actions-row">
+      <button class="list-cta lista-uncheck-btn" id="uncheckAllBtn">Togli le spunte</button>
+      <button class="compare-btn lista-clear-btn" id="clearListBtn">Svuota lista</button>
+    </div>`;
   view.innerHTML = html;
 
   view.querySelectorAll(".shopping-check").forEach(btn => {
@@ -592,6 +596,11 @@ function renderLista() {
   });
   view.querySelectorAll(".shopping-remove").forEach(btn => {
     btn.addEventListener("click", () => { removeFromList(btn.dataset.slug); updateListBadge(); render(); });
+  });
+  document.getElementById("uncheckAllBtn").addEventListener("click", () => {
+    Object.keys(SHOPPING_LIST).forEach(slug => { SHOPPING_LIST[slug].checked = false; });
+    saveShoppingList();
+    render();
   });
   document.getElementById("clearListBtn").addEventListener("click", () => {
     SHOPPING_LIST = {};

@@ -588,6 +588,23 @@ body { min-height: 100vh; min-height: 100dvh; }
 }
 .shopping-remove:hover { color: var(--ink); }
 
+.lista-actions-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.lista-uncheck-btn {
+  flex: 3;
+  margin-top: 0;
+}
+.lista-clear-btn {
+  flex: 1;
+  justify-content: center;
+  font-size: calc(11.5px * var(--scale-body));
+  padding: 8px 6px;
+  white-space: nowrap;
+}
+
 /* Tutorial */
 .tutorial-card {
   background: #fff;
